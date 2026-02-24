@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+
+{% block title %}数据同步 - MacroQuant{% endblock %}
+{% block page_title %}数据同步{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+    <div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg">
+        <div class="px-4 py-3 border-b border-bloomberg-border flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-bloomberg-text">数据源状态</h3>
+            <button onclick="loadProviderStatus()" class="text-xs text-bloomberg-primary hover:text-blue-600">
+                刷新状态
+            </button>
+        </div>
+        <div class="p-4">
+            <div id="provider-status" class="space-y-3">
+                <div class="text-center text-bloomberg-muted py-4">点击"刷新状态"查看数据源状态</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg">
+        <div class="px-4 py-3 border-b border-bloomberg-border">
+            <h3 class="text-sm font-semibold text-bloomberg-text">数据源切换</h3>
+        </div>
+        <div class="p-4">
+            <div id="provider-buttons" class="flex items-center space-x-4">
+                <button onclick="switchProvider('akshare')" id="btn-akshare" class="px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors">
+                    使用 AkShare
+                </button>
+                <button onclick="switchProvider('baostock')" id="btn-baostock" class="px-4 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text text-sm hover:bg-bloomberg-border transition-colors">
+                    使用 Baostock
+                </button>
+            </div>
+            <p class="text-xs text-bloomberg-muted mt-3">切换数据源后，后续的数据同步将使用新的数据源</p>
+        </div>
+    </div>
+</div>
+
+<div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg mb-6">
+    <div class="px-4 py-3 border-b border-bloomberg-border">
+        <h3 class="text-sm font-semibold text-bloomberg-text">同步操作</h3>
+    </div>
+    <div class="p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-4 bg-bloomberg-card rounded">
+                <h4 class="text-sm font-medium text-bloomberg-text mb-2">股票列表</h4>
+                <p class="text-xs text-bloomberg-muted mb-3">同步所有A股股票基本信息</p>
+                <button onclick="syncStockList()" class="w-full px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors">
+                    同步股票列表
+                </button>
+            </div>
+            <div class="p-4 bg-bloomberg-card rounded">
+                <h4 class="text-sm font-medium text-bloomberg-text mb-2">单只股票日线</h4>
+                <p class="text-xs text-bloomberg-muted mb-3">输入股票代码同步日线数据</p>
+                <div class="flex space-x-2">
+                    <input type="text" id="single-stock-symbol" placeholder="股票代码" 
+                        class="flex-1 px-3 py-2 bg-bloomberg-surface border border-bloomberg-border rounded text-bloomberg-text placeholder-bloomberg-muted focus:outline-none focus:border-bloomberg-primary text-sm">
+                    <select id="single-stock-days" class="px-3 py-2 bg-bloomberg-surface border border-bloomberg-border rounded text-bloomberg-text text-sm">
+                        <option value="30">30天</option>
+                        <option value="365">1年</option>
+                        <option value="1095">3年</option>
+                    </select>
+                    <button onclick="syncSingleStock()" class="px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors">
+                        同步
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg mb-6">
+    <div class="px-4 py-3 border-b border-bloomberg-border">
+        <h3 class="text-sm font-semibold text-bloomberg-text">批量同步日线数据</h3>
+    </div>
+    <div class="p-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+                <label class="block text-xs text-bloomberg-muted mb-2">时间范围</label>
+                <select id="sync-days" class="w-full px-3 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text text-sm">
+                    <option value="30">近30天</option>
+                    <option value="365">近1年</option>
+                    <option value="1095">近3年</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-bloomberg-muted mb-2">股票范围</label>
+                <select id="sync-scope" class="w-full px-3 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text text-sm">
+                    <option value="all">全部股票</option>
+                    <option value="watchlist">自选股票</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs text-bloomberg-muted mb-2">同步模式</label>
+                <select id="sync-mode" class="w-full px-3 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text text-sm">
+                    <option value="incremental">完善（只同步缺失数据）</option>
+                    <option value="full">全新（重新同步所有数据）</option>
+                </select>
+            </div>
+        </div>
+        <div class="bg-bloomberg-bg rounded p-3 mb-4">
+            <p class="text-xs text-bloomberg-muted">
+                <strong>时间范围：</strong>选择要同步的历史数据时间跨度<br>
+                <strong>股票范围：</strong>全部股票 = 所有A股；自选股票 = 您添加的自选股<br>
+                <strong>完善模式：</strong>只同步缺失的数据，数据完整的股票跳过<br>
+                <strong>全新模式：</strong>重新同步所有股票的所有数据
+            </p>
+        </div>
+        <button onclick="syncBatchStocks()" class="w-full px-4 py-3 bg-bloomberg-warning text-white rounded text-sm font-medium hover:bg-yellow-600 transition-colors">
+            开始批量同步
+        </button>
+        <p class="text-xs text-bloomberg-danger mt-2">注意：批量同步操作耗时较长，请在后台运行</p>
+    </div>
+</div>
+
+<div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg mb-6">
+    <div class="px-4 py-3 border-b border-bloomberg-border">
+        <h3 class="text-sm font-semibold text-bloomberg-text">分时数据同步</h3>
+    </div>
+    <div class="p-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-4 bg-bloomberg-card rounded">
+                <h4 class="text-sm font-medium text-bloomberg-text mb-2">单只股票分时数据</h4>
+                <p class="text-xs text-bloomberg-muted mb-3">同步指定日期的分时数据</p>
+                <div class="flex space-x-2">
+                    <input type="text" id="timeline-symbol" placeholder="股票代码" 
+                        class="flex-1 px-3 py-2 bg-bloomberg-surface border border-bloomberg-border rounded text-bloomberg-text placeholder-bloomberg-muted focus:outline-none focus:border-bloomberg-primary text-sm">
+                    <input type="date" id="timeline-date" 
+                        class="px-3 py-2 bg-bloomberg-surface border border-bloomberg-border rounded text-bloomberg-text text-sm">
+                    <button onclick="syncTimeline()" class="px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors">
+                        同步
+                    </button>
+                </div>
+            </div>
+            <div class="p-4 bg-bloomberg-card rounded">
+                <h4 class="text-sm font-medium text-bloomberg-text mb-2">批量同步分时数据</h4>
+                <p class="text-xs text-bloomberg-muted mb-3">同步自选股票今日分时数据</p>
+                <button onclick="syncBatchTimeline()" class="w-full px-4 py-2 bg-bloomberg-warning text-white rounded text-sm hover:bg-yellow-600 transition-colors">
+                    同步自选股票分时数据
+                </button>
+            </div>
+        </div>
+        <p class="text-xs text-bloomberg-muted mt-3">
+            <strong>说明：</strong>分时数据只在交易日有数据，非交易日会自动显示最近一个交易日的数据
+        </p>
+    </div>
+</div>
+
+<div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg">
+    <div class="px-4 py-3 border-b border-bloomberg-border flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-bloomberg-text">同步日志</h3>
+        <button onclick="clearLogs()" class="text-xs text-bloomberg-muted hover:text-bloomberg-text">清空日志</button>
+    </div>
+    <div class="p-4">
+        <div id="sync-logs" class="bg-bloomberg-bg rounded p-3 h-64 overflow-y-auto font-mono text-xs">
+            <div class="text-bloomberg-muted">等待同步操作...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 设置默认日期为今天
+document.getElementById('timeline-date').valueAsDate = new Date();
+
+// 从localStorage加载日志
+function loadLogsFromStorage() {
+    const savedLogs = localStorage.getItem('syncLogs');
+    if (savedLogs) {
+        document.getElementById('sync-logs').innerHTML = savedLogs;
+    }
+}
+
+// 保存日志到localStorage
+function saveLogsToStorage() {
+    const logsDiv = document.getElementById('sync-logs');
+    localStorage.setItem('syncLogs', logsDiv.innerHTML);
+}
+
+function addLog(message, type = 'info') {
+    const logsDiv = document.getElementById('sync-logs');
+    const time = new Date().toLocaleTimeString('zh-CN');
+    const colorClass = type === 'error' ? 'text-bloomberg-danger' : type === 'success' ? 'text-bloomberg-success' : 'text-bloomberg-text';
+    logsDiv.innerHTML += `<div class="${colorClass}">[${time}] ${message}</div>`;
+    logsDiv.scrollTop = logsDiv.scrollHeight;
+    saveLogsToStorage();
+}
+
+function clearLogs() {
+    document.getElementById('sync-logs').innerHTML = '<div class="text-bloomberg-muted">日志已清空</div>';
+    localStorage.removeItem('syncLogs');
+}
+
+// 页面加载时恢复日志
+loadLogsFromStorage();
+
+async function loadProviderStatus() {
+    try {
+        const [statusResponse, providerResponse] = await Promise.all([
+            fetch('/api/v1/data/test-connection'),
+            fetch('/api/v1/data/provider/status')
+        ]);
+        const statusData = await statusResponse.json();
+        const providerData = await providerResponse.json();
+        
+        const statusDiv = document.getElementById('provider-status');
+        statusDiv.innerHTML = `
+            <div class="flex items-center justify-between p-3 bg-bloomberg-card rounded">
+                <span class="text-sm text-bloomberg-muted">当前数据源</span>
+                <span class="text-sm font-semibold text-bloomberg-primary">${providerData.primary === 'akshare' ? 'AkShare' : 'Baostock'}</span>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-bloomberg-card rounded">
+                <span class="text-sm text-bloomberg-muted">AkShare</span>
+                <span class="flex items-center">
+                    <span class="w-2 h-2 ${statusData.results.akshare ? 'bg-bloomberg-success' : 'bg-bloomberg-danger'} rounded-full mr-2"></span>
+                    <span class="text-xs ${statusData.results.akshare ? 'text-bloomberg-success' : 'text-bloomberg-danger'}">${statusData.results.akshare ? '可用' : '不可用'}</span>
+                </span>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-bloomberg-card rounded">
+                <span class="text-sm text-bloomberg-muted">Baostock</span>
+                <span class="flex items-center">
+                    <span class="w-2 h-2 ${statusData.results.baostock ? 'bg-bloomberg-success' : 'bg-bloomberg-danger'} rounded-full mr-2"></span>
+                    <span class="text-xs ${statusData.results.baostock ? 'text-bloomberg-success' : 'text-bloomberg-danger'}">${statusData.results.baostock ? '可用' : '不可用'}</span>
+                </span>
+            </div>
+        `;
+        
+        updateProviderButtons(providerData.primary);
+    } catch (error) {
+        addLog('获取数据源状态失败: ' + error.message, 'error');
+    }
+}
+
+function updateProviderButtons(currentProvider) {
+    const btnAkshare = document.getElementById('btn-akshare');
+    const btnBaostock = document.getElementById('btn-baostock');
+    
+    if (currentProvider === 'akshare') {
+        btnAkshare.className = 'px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors';
+        btnBaostock.className = 'px-4 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text text-sm hover:bg-bloomberg-border transition-colors';
+    } else {
+        btnBaostock.className = 'px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors';
+        btnAkshare.className = 'px-4 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text text-sm hover:bg-bloomberg-border transition-colors';
+    }
+}
+
+async function switchProvider(provider) {
+    try {
+        const response = await fetch('/api/v1/data/provider/switch', { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ provider: provider })
+        });
+        const data = await response.json();
+        addLog(`已切换数据源为: ${data.primary}`, 'success');
+        updateProviderButtons(data.primary);
+        
+        const statusDiv = document.getElementById('provider-status');
+        const currentProviderText = data.primary === 'akshare' ? 'AkShare' : 'Baostock';
+        statusDiv.innerHTML = `
+            <div class="flex items-center justify-between p-3 bg-bloomberg-card rounded">
+                <span class="text-sm text-bloomberg-muted">当前数据源</span>
+                <span class="text-sm font-semibold text-bloomberg-primary">${currentProviderText}</span>
+            </div>
+            <div class="text-center text-bloomberg-muted py-4">点击"刷新状态"查看数据源连接状态</div>
+        `;
+    } catch (error) {
+        addLog('切换数据源失败: ' + error.message, 'error');
+    }
+}
+
+async function syncStockList() {
+    addLog('开始同步股票列表...');
+    try {
+        const response = await fetch('/api/v1/data/sync/stock-list', { method: 'POST' });
+        const data = await response.json();
+        addLog(`股票列表同步完成，共 ${data.count} 只股票`, 'success');
+    } catch (error) {
+        addLog('同步失败: ' + error.message, 'error');
+    }
+}
+
+async function syncSingleStock() {
+    const symbol = document.getElementById('single-stock-symbol').value.trim();
+    const days = document.getElementById('single-stock-days').value;
+    if (!symbol) {
+        addLog('请输入股票代码', 'error');
+        return;
+    }
+    addLog(`开始同步 ${symbol} 近 ${days} 天日线数据...`);
+    try {
+        const response = await fetch(`/api/v1/data/sync/stock-daily/${symbol}?days=${days}`, { method: 'POST' });
+        const data = await response.json();
+        addLog(`${symbol} 同步完成，共 ${data.count} 条数据`, 'success');
+    } catch (error) {
+        addLog('同步失败: ' + error.message, 'error');
+    }
+}
+
+async function syncBatchStocks() {
+    const days = parseInt(document.getElementById('sync-days').value);
+    const scope = document.getElementById('sync-scope').value;
+    const mode = document.getElementById('sync-mode').value;
+    
+    const daysText = days === 30 ? '30天' : days === 365 ? '1年' : '3年';
+    const scopeText = scope === 'all' ? '全部股票' : '自选股票';
+    const modeText = mode === 'full' ? '全新' : '完善';
+    
+    if (!confirm(`确定要以${modeText}模式同步${scopeText}近${daysText}的数据吗？此操作耗时较长。`)) return;
+    
+    addLog(`开始以${modeText}模式同步${scopeText}近${daysText}的数据（后台运行）...`);
+    try {
+        const response = await fetch('/api/v1/data/sync/batch-stocks-daily', { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ days: days, scope: scope, mode: mode })
+        });
+        const data = await response.json();
+        addLog(data.message, 'success');
+        
+        // 开始轮询进度
+        if (data.task_id) {
+            startProgressPolling(data.task_id);
+        }
+    } catch (error) {
+        addLog('同步失败: ' + error.message, 'error');
+    }
+}
+
+let progressInterval = null;
+
+function startProgressPolling(taskId) {
+    // 清除之前的轮询
+    if (progressInterval) {
+        clearInterval(progressInterval);
+    }
+    
+    // 每2秒获取一次进度
+    progressInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`/api/v1/data/sync/progress/${taskId}`);
+            const progress = await response.json();
+            
+            if (progress.status === 'running') {
+                // 更新进度显示
+                const percent = progress.total_stocks > 0 
+                    ? Math.round((progress.synced_stocks / progress.total_stocks) * 100) 
+                    : 0;
+                
+                // 显示最新的几条日志
+                if (progress.logs && progress.logs.length > 0) {
+                    const latestLogs = progress.logs.slice(-3);
+                    latestLogs.forEach(log => {
+                        // 检查日志是否已存在
+                        const logsDiv = document.getElementById('sync-logs');
+                        if (!logsDiv.innerHTML.includes(log)) {
+                            addLog(log.replace(/^\[[\d:]+\]\s*/, ''), 'info');
+                        }
+                    });
+                }
+                
+                // 更新进度条
+                updateProgressBar(percent, progress.current_stock, progress.current_stock_name);
+            } else if (progress.status === 'completed') {
+                clearInterval(progressInterval);
+                hideProgressBar();
+                addLog(`同步完成！共处理 ${progress.total_stocks} 只股票，同步 ${progress.synced_records} 条记录`, 'success');
+            } else if (progress.status === 'failed') {
+                clearInterval(progressInterval);
+                hideProgressBar();
+                addLog('同步失败', 'error');
+            }
+        } catch (error) {
+            console.error('获取进度失败:', error);
+        }
+    }, 2000);
+}
+
+function updateProgressBar(percent, currentStock, currentStockName) {
+    let progressDiv = document.getElementById('sync-progress-container');
+    if (!progressDiv) {
+        // 创建进度条容器
+        const container = document.createElement('div');
+        container.id = 'sync-progress-container';
+        container.className = 'fixed bottom-4 right-4 bg-bloomberg-card border border-bloomberg-border rounded-lg p-4 shadow-lg z-50 w-80';
+        container.innerHTML = `
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm text-bloomberg-text">同步进度</span>
+                <span id="sync-progress-percent" class="text-sm text-bloomberg-primary font-semibold">0%</span>
+            </div>
+            <div class="w-full bg-bloomberg-border rounded-full h-2 mb-2">
+                <div id="sync-progress-bar" class="bg-bloomberg-primary h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div id="sync-current-stock" class="text-xs text-bloomberg-muted truncate"></div>
+        `;
+        document.body.appendChild(container);
+        progressDiv = container;
+    }
+    
+    document.getElementById('sync-progress-percent').textContent = `${percent}%`;
+    document.getElementById('sync-progress-bar').style.width = `${percent}%`;
+    document.getElementById('sync-current-stock').textContent = currentStock 
+        ? `正在同步: ${currentStock} (${currentStockName || ''})` 
+        : '';
+}
+
+function hideProgressBar() {
+    const progressDiv = document.getElementById('sync-progress-container');
+    if (progressDiv) {
+        progressDiv.remove();
+    }
+}
+
+async function syncTimeline() {
+    const symbol = document.getElementById('timeline-symbol').value.trim();
+    const dateInput = document.getElementById('timeline-date').value;
+    
+    if (!symbol) {
+        addLog('请输入股票代码', 'error');
+        return;
+    }
+    
+    // 转换日期格式 YYYY-MM-DD -> YYYYMMDD
+    const date = dateInput.replace(/-/g, '');
+    
+    addLog(`开始同步 ${symbol} ${dateInput} 的分时数据...`);
+    try {
+        const response = await fetch(`/api/v1/data/sync/timeline/${symbol}?date=${date}`, { method: 'POST' });
+        const data = await response.json();
+        addLog(`${symbol} 分时数据同步完成，共 ${data.count} 条记录`, 'success');
+    } catch (error) {
+        addLog('同步失败: ' + error.message, 'error');
+    }
+}
+
+async function syncBatchTimeline() {
+    if (!confirm('确定要同步自选股票今日的分时数据吗？')) return;
+    
+    addLog('开始同步自选股票分时数据...');
+    try {
+        // 获取自选股列表
+        const response = await fetch('/api/v1/data/watchlist');
+        const data = await response.json();
+        const watchlist = data.items;
+        
+        if (watchlist.length === 0) {
+            addLog('自选股票列表为空', 'error');
+            return;
+        }
+        
+        addLog(`找到 ${watchlist.length} 只自选股票，开始同步分时数据...`);
+        
+        const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
+        let successCount = 0;
+        
+        for (const item of watchlist) {
+            if (item.stock) {
+                try {
+                    const response = await fetch(`/api/v1/data/sync/timeline/${item.stock.symbol}?date=${today}`, { method: 'POST' });
+                    const result = await response.json();
+                    if (result.count > 0) {
+                        successCount++;
+                        addLog(`${item.stock.symbol} 同步完成，${result.count} 条记录`, 'success');
+                    } else {
+                        addLog(`${item.stock.symbol} 无数据（可能是非交易日）`, 'info');
+                    }
+                } catch (e) {
+                    addLog(`${item.stock.symbol} 同步失败`, 'error');
+                }
+            }
+        }
+        
+        addLog(`分时数据同步完成，成功 ${successCount}/${watchlist.length} 只股票`, 'success');
+    } catch (error) {
+        addLog('同步失败: ' + error.message, 'error');
+    }
+}
+
+async function initPage() {
+    try {
+        const response = await fetch('/api/v1/data/provider/status');
+        const data = await response.json();
+        updateProviderButtons(data.primary);
+        
+        const statusDiv = document.getElementById('provider-status');
+        const currentProviderText = data.primary === 'akshare' ? 'AkShare' : 'Baostock';
+        statusDiv.innerHTML = `
+            <div class="flex items-center justify-between p-3 bg-bloomberg-card rounded">
+                <span class="text-sm text-bloomberg-muted">当前数据源</span>
+                <span class="text-sm font-semibold text-bloomberg-primary">${currentProviderText}</span>
+            </div>
+            <div class="text-center text-bloomberg-muted py-4">点击"刷新状态"查看数据源连接状态</div>
+        `;
+    } catch (error) {
+        console.error('初始化失败:', error);
+    }
+}
+
+initPage();
+</script>
+{% endblock %}

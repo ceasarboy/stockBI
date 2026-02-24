@@ -1,0 +1,1500 @@
+{% extends "base.html" %}
+
+{% block title %}{{ stock.name }} ({{ stock.symbol }}) - MacroQuant{% endblock %}
+{% block page_title %}{{ stock.name }} ({{ stock.symbol }}){% endblock %}
+
+{% block content %}
+<div class="px-4 py-2 border-b border-bloomberg-border flex items-center space-x-2">
+    <button id="btn-timeline" onclick="switchChartType('timeline')" class="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+        分时
+    </button>
+    <button id="btn-kline" onclick="switchChartType('kline')" class="px-3 py-1.5 text-sm bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text hover:bg-bloomberg-border transition-colors">
+        日K
+    </button>
+    <button id="btn-week" onclick="switchChartType('week')" class="px-3 py-1.5 text-sm bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text hover:bg-bloomberg-border transition-colors">
+        周K
+    </button>
+    <button id="btn-month" onclick="switchChartType('month')" class="px-3 py-1.5 text-sm bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text hover:bg-bloomberg-border transition-colors">
+        月K
+    </button>
+    <div class="w-px h-6 bg-bloomberg-border mx-2"></div>
+    <button id="btn-volume" onclick="switchIndicator('volume')" class="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors">
+        交易量
+    </button>
+    <button id="btn-macd" onclick="switchIndicator('macd')" class="px-3 py-1.5 text-xs bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text hover:bg-bloomberg-border transition-colors">
+        MACD
+    </button>
+    <button id="btn-kdj" onclick="switchIndicator('kdj')" class="px-3 py-1.5 text-xs bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text hover:bg-bloomberg-border transition-colors">
+        KDJ
+    </button>
+    <button id="btn-rsi" onclick="switchIndicator('rsi')" class="px-3 py-1.5 text-xs bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text hover:bg-bloomberg-border transition-colors">
+        RSI
+    </button>
+    <button id="btn-obv" onclick="switchIndicator('obv')" class="px-3 py-1.5 text-xs bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text hover:bg-bloomberg-border transition-colors">
+        OBV
+    </button>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-8 gap-4">
+    <div class="lg:col-span-7">
+        <div id="combined-chart" style="width: 100%; height: 700px;"></div>
+    </div>
+    
+    <div class="lg:col-span-1 space-y-3">
+        <div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg p-3">
+            <h3 class="text-sm font-semibold text-bloomberg-text mb-3">价格信息</h3>
+            <div class="space-y-2 text-xs">
+                <div class="flex justify-between">
+                    <span class="text-bloomberg-muted">日期</span>
+                    <span id="info-date" class="text-bloomberg-text font-medium">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-bloomberg-muted">最新价</span>
+                    <span id="current-price" class="text-bloomberg-text font-medium">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-bloomberg-muted">涨跌</span>
+                    <span id="price-change" class="text-bloomberg-text">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-bloomberg-muted">涨跌幅</span>
+                    <span id="price-change-pct" class="text-bloomberg-text">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-bloomberg-muted">今开</span>
+                    <span id="today-open" class="text-bloomberg-text">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-bloomberg-muted">最高</span>
+                    <span id="today-high" class="text-bloomberg-text">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-bloomberg-muted">最低</span>
+                    <span id="today-low" class="text-bloomberg-text">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-bloomberg-muted">昨收</span>
+                    <span id="pre-close" class="text-bloomberg-text">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-bloomberg-muted">成交量</span>
+                    <span id="today-volume" class="text-bloomberg-text">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-bloomberg-muted">成交额</span>
+                    <span id="today-amount" class="text-bloomberg-text">-</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg p-3">
+            <h3 class="text-sm font-semibold text-bloomberg-text mb-3">快捷操作</h3>
+            <div class="space-y-2">
+                <button id="btn-realtime-toggle" onclick="toggleRealtime()" class="w-full px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors">
+                    📡 开启实时行情
+                </button>
+                <button id="btn-watchlist" onclick="toggleWatchlist()" class="w-full px-4 py-2 bg-bloomberg-success text-white rounded text-sm hover:bg-green-600 transition-colors">
+                    加入自选股
+                </button>
+                <button onclick="syncTimeline()" class="w-full px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors">
+                    同步分时信息
+                </button>
+                <button onclick="syncDaily(30)" class="w-full px-4 py-2 bg-bloomberg-warning text-white rounded text-sm hover:bg-yellow-600 transition-colors">
+                    同步30日日线
+                </button>
+                <button onclick="syncDaily(365)" class="w-full px-4 py-2 bg-bloomberg-warning text-white rounded text-sm hover:bg-yellow-600 transition-colors">
+                    同步1年日线
+                </button>
+                <button onclick="syncDaily(1095)" class="w-full px-4 py-2 bg-bloomberg-warning text-white rounded text-sm hover:bg-yellow-600 transition-colors">
+                    同步3年日线
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg">
+        <div class="px-4 py-3 border-b border-bloomberg-border flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-bloomberg-text">价格历史</h3>
+            <span id="records-count" class="text-xs text-bloomberg-muted">0 条记录</span>
+        </div>
+        <div class="overflow-x-auto" style="max-height: 500px; overflow-y: auto;">
+            <table class="w-full text-sm">
+                <thead class="sticky top-0 bg-bloomberg-card">
+                    <tr class="bg-bloomberg-card">
+                        <th class="px-3 py-2 text-left text-bloomberg-muted font-medium">日期</th>
+                        <th class="px-3 py-2 text-right text-bloomberg-muted font-medium">开盘</th>
+                        <th class="px-3 py-2 text-right text-bloomberg-muted font-medium">最高</th>
+                        <th class="px-3 py-2 text-right text-bloomberg-muted font-medium">最低</th>
+                        <th class="px-3 py-2 text-right text-bloomberg-muted font-medium">收盘</th>
+                        <th class="px-3 py-2 text-right text-bloomberg-muted font-medium">成交量</th>
+                        <th class="px-3 py-2 text-right text-bloomberg-muted font-medium">涨跌</th>
+                    </tr>
+                </thead>
+                <tbody id="price-history">
+                    <tr>
+                        <td colspan="7" class="px-3 py-4 text-center text-bloomberg-muted">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg">
+        <div class="px-4 py-3 border-b border-bloomberg-border">
+            <h3 class="text-sm font-semibold text-bloomberg-text">因子选股</h3>
+        </div>
+        <div class="p-4" style="height: 500px; overflow-y: auto;">
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs text-bloomberg-muted block mb-2">选择因子</label>
+                    <select id="factor-select" class="w-full bg-bloomberg-card border border-bloomberg-border rounded px-3 py-2 text-sm text-bloomberg-text focus:outline-none focus:border-bloomberg-primary">
+                        <option value="">请选择因子</option>
+                        <option value="pe">市盈率 (PE)</option>
+                        <option value="pb">市净率 (PB)</option>
+                        <option value="roe">净资产收益率 (ROE)</option>
+                        <option value="market_cap">市值</option>
+                        <option value="turnover">换手率</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="text-xs text-bloomberg-muted block mb-2">筛选条件</label>
+                    <div class="flex space-x-2">
+                        <select id="factor-operator" class="flex-1 bg-bloomberg-card border border-bloomberg-border rounded px-3 py-2 text-sm text-bloomberg-text focus:outline-none focus:border-bloomberg-primary">
+                            <option value="gt">大于</option>
+                            <option value="lt">小于</option>
+                            <option value="eq">等于</option>
+                            <option value="between">区间</option>
+                        </select>
+                        <input type="number" id="factor-value" placeholder="输入值" class="flex-1 bg-bloomberg-card border border-bloomberg-border rounded px-3 py-2 text-sm text-bloomberg-text focus:outline-none focus:border-bloomberg-primary">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="text-xs text-bloomberg-muted block mb-2">排序方式</label>
+                    <select id="factor-sort" class="w-full bg-bloomberg-card border border-bloomberg-border rounded px-3 py-2 text-sm text-bloomberg-text focus:outline-none focus:border-bloomberg-primary">
+                        <option value="desc">降序</option>
+                        <option value="asc">升序</option>
+                    </select>
+                </div>
+                
+                <button onclick="runFactorScreen()" class="w-full px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors">
+                    执行筛选
+                </button>
+                
+                <div id="factor-results" class="mt-4">
+                    <div class="text-xs text-bloomberg-muted text-center py-4">
+                        请选择因子并执行筛选
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<script>
+const stockSymbol = '{{ stock.symbol }}';
+let priceData = [];
+let timelineData = [];
+let mainChart = null;
+let currentChartType = 'kline';
+let currentIndicator = 'volume';
+let currentTimelineDate = null;
+let isRealtimeMode = false;
+let realtimeInterval = null;
+
+function calculateMA(data, period) {
+    let ma = [];
+    for (let i = 0; i < data.length; i++) {
+        if (i < period - 1) {
+            ma.push(null);
+        } else {
+            let sum = 0;
+            for (let j = 0; j < period; j++) {
+                sum += data[i - j];
+            }
+            ma.push(sum / period);
+        }
+    }
+    return ma;
+}
+
+function calculateMACD(data, shortPeriod = 12, longPeriod = 26, signalPeriod = 9) {
+    const emaShort = calculateEMA(data, shortPeriod);
+    const emaLong = calculateEMA(data, longPeriod);
+    const dif = emaShort.map((v, i) => v - emaLong[i]);
+    const dea = calculateEMA(dif, signalPeriod);
+    const macd = dif.map((v, i) => (v - dea[i]) * 2);
+    
+    return {
+        dif: dif,
+        dea: dea,
+        macd: macd,
+        histogram: dif.map((v, i) => v - dea[i])
+    };
+}
+
+function calculateEMA(data, period) {
+    let ema = [data[0]];
+    const k = 2 / (period + 1);
+    
+    for (let i = 1; i < data.length; i++) {
+        ema.push(data[i] * k + ema[i - 1] * (1 - k));
+    }
+    
+    return ema;
+}
+
+function calculateKDJ(data, n = 9, m1 = 3, m2 = 3) {
+    const high = data.map(d => d.high);
+    const low = data.map(d => d.low);
+    const close = data.map(d => d.close);
+    
+    const rsv = [];
+    for (let i = 0; i < data.length; i++) {
+        if (i < n - 1) {
+            rsv.push(null);
+        } else {
+            const highestHigh = Math.max(...high.slice(i - n + 1, i + 1));
+            const lowestLow = Math.min(...low.slice(i - n + 1, i + 1));
+            if (highestHigh === lowestLow) {
+                rsv.push(50);
+            } else {
+                rsv.push((close[i] - lowestLow) / (highestHigh - lowestLow) * 100);
+            }
+        }
+    }
+    
+    let k = [];
+    let d = [];
+    
+    for (let i = 0; i < data.length; i++) {
+        if (i < n - 1) {
+            k.push(null);
+            d.push(null);
+        } else if (i === n - 1) {
+            k.push(50);
+            d.push(50);
+        } else {
+            k.push((2 / 3) * k[i - 1] + (1 / 3) * rsv[i]);
+            d.push((2 / 3) * d[i - 1] + (1 / 3) * k[i]);
+        }
+    }
+    
+    const j = k.map((v, i) => v === null ? null : 3 * v - 2 * d[i]);
+    
+    return { k, d, j };
+}
+
+function calculateRSI(data, period = 14) {
+    const rsi = [];
+    
+    for (let i = period; i < data.length; i++) {
+        let gains = 0;
+        let losses = 0;
+        
+        for (let j = i - period + 1; j <= i; j++) {
+            const change = data[j] - data[j - 1];
+            if (change > 0) {
+                gains += change;
+            } else {
+                losses -= change;
+            }
+        }
+        
+        const avgGain = gains / period;
+        const avgLoss = Math.abs(losses) / period;
+        
+        if (avgLoss === 0) {
+            rsi.push(100);
+        } else {
+            const rs = avgGain / avgLoss;
+            rsi.push(100 - (100 / (1 + rs)));
+        }
+    }
+    
+    for (let i = 0; i < period; i++) {
+        rsi.unshift(null);
+    }
+    
+    return rsi;
+}
+
+function calculateOBV(data) {
+    let obv = [0];
+    
+    for (let i = 1; i < data.length; i++) {
+        const change = data[i].close - data[i - 1].close;
+        const volume = data[i].volume || 0;
+        
+        if (change > 0) {
+            obv.push(obv[i - 1] + volume);
+        } else {
+            obv.push(obv[i - 1] - volume);
+        }
+    }
+    
+    return obv;
+}
+
+function aggregateWeekly(data) {
+    const weeklyData = [];
+    let currentWeek = null;
+    let weekData = null;
+    
+    for (let i = data.length - 1; i >= 0; i--) {
+        const row = data[i];
+        const date = new Date(row.trade_date);
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay() + 1);
+        const weekKey = weekStart.toISOString().split('T')[0];
+        
+        if (currentWeek !== weekKey) {
+            if (weekData !== null) {
+                weeklyData.unshift(weekData);
+            }
+            currentWeek = weekKey;
+            weekData = {
+                trade_date: weekKey,
+                open: row.open,
+                high: row.high,
+                low: row.low,
+                close: row.close,
+                volume: row.volume || 0,
+                amount: row.amount || 0
+            };
+        } else {
+            weekData.high = Math.max(weekData.high, row.high);
+            weekData.low = Math.min(weekData.low, row.low);
+            weekData.close = row.close;
+            weekData.volume += row.volume || 0;
+            weekData.amount += row.amount || 0;
+        }
+    }
+    
+    if (weekData !== null) {
+        weeklyData.unshift(weekData);
+    }
+    
+    return weeklyData;
+}
+
+function aggregateMonthly(data) {
+    const monthlyData = [];
+    let currentMonth = null;
+    let monthData = null;
+    
+    for (let i = data.length - 1; i >= 0; i--) {
+        const row = data[i];
+        const date = new Date(row.trade_date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (currentMonth !== monthKey) {
+            if (monthData !== null) {
+                monthlyData.unshift(monthData);
+            }
+            currentMonth = monthKey;
+            monthData = {
+                trade_date: monthKey,
+                open: row.open,
+                high: row.high,
+                low: row.low,
+                close: row.close,
+                volume: row.volume || 0,
+                amount: row.amount || 0
+            };
+        } else {
+            monthData.high = Math.max(monthData.high, row.high);
+            monthData.low = Math.min(monthData.low, row.low);
+            monthData.close = row.close;
+            monthData.volume += row.volume || 0;
+            monthData.amount += row.amount || 0;
+        }
+    }
+    
+    if (monthData !== null) {
+        monthlyData.unshift(monthData);
+    }
+    
+    return monthlyData;
+}
+
+let currentValidData = [];
+let currentDates = [];
+
+function getCombinedOption() {
+    let displayData = [...priceData].reverse();
+    
+    if (currentChartType === 'week') {
+        displayData = aggregateWeekly(displayData);
+    } else if (currentChartType === 'month') {
+        displayData = aggregateMonthly(displayData);
+    }
+    
+    currentValidData = displayData.filter(d => d.open !== null && d.high !== null && d.low !== null && d.close !== null && 
+                                               d.open !== undefined && d.high !== undefined && d.low !== undefined && d.close !== undefined);
+    currentDates = currentValidData.map(d => d.trade_date);
+    const open = currentValidData.map(d => d.open);
+    const high = currentValidData.map(d => d.high);
+    const low = currentValidData.map(d => d.low);
+    const close = currentValidData.map(d => d.close);
+    const volumes = currentValidData.map(d => d.volume || 0);
+    const candleData = currentValidData.map(d => [d.open, d.close, d.low, d.high]);
+    
+    const ma5 = calculateMA(close, 5);
+    const ma10 = calculateMA(close, 10);
+    const ma20 = calculateMA(close, 20);
+    const ma30 = calculateMA(close, 30);
+    
+    let subChartSeries = [];
+    let indicatorLegend = [];
+    
+    if (currentIndicator === 'macd') {
+        const macdData = calculateMACD(close);
+        indicatorLegend = ['DIF', 'DEA', 'MACD'];
+        subChartSeries = [
+            { name: 'DIF', type: 'line', data: macdData.dif, lineStyle: { color: '#f59e0b', width: 1 }, showSymbol: false },
+            { name: 'DEA', type: 'line', data: macdData.dea, lineStyle: { color: '#3b82f6', width: 1 }, showSymbol: false },
+            { 
+                name: 'MACD', 
+                type: 'bar', 
+                data: macdData.histogram,
+                itemStyle: {
+                    color: (params) => params.value >= 0 ? '#ef232a' : '#14b143'
+                }
+            }
+        ];
+    } else if (currentIndicator === 'kdj') {
+        const kdjData = calculateKDJ(currentValidData);
+        indicatorLegend = ['K', 'D', 'J'];
+        subChartSeries = [
+            { name: 'K', type: 'line', data: kdjData.k, lineStyle: { color: '#f59e0b', width: 1 }, showSymbol: false },
+            { name: 'D', type: 'line', data: kdjData.d, lineStyle: { color: '#3b82f6', width: 1 }, showSymbol: false },
+            { name: 'J', type: 'line', data: kdjData.j, lineStyle: { color: '#ec4899', width: 1 }, showSymbol: false }
+        ];
+    } else if (currentIndicator === 'rsi') {
+        const rsi6 = calculateRSI(close, 6);
+        const rsi12 = calculateRSI(close, 12);
+        const rsi24 = calculateRSI(close, 24);
+        indicatorLegend = ['RSI6', 'RSI12', 'RSI24'];
+        subChartSeries = [
+            { 
+                name: 'RSI6', 
+                type: 'line', 
+                data: rsi6,
+                lineStyle: { color: '#f59e0b', width: 1 },
+                showSymbol: false
+            },
+            { 
+                name: 'RSI12', 
+                type: 'line', 
+                data: rsi12,
+                lineStyle: { color: '#a855f7', width: 1 },
+                showSymbol: false
+            },
+            { 
+                name: 'RSI24', 
+                type: 'line', 
+                data: rsi24,
+                lineStyle: { color: '#6b7280', width: 1 },
+                showSymbol: false,
+                markLine: {
+                    silent: true,
+                    lineStyle: { color: '#666', type: 'dashed', width: 0.5 },
+                    data: [
+                        { yAxis: 20, label: { show: false } },
+                        { yAxis: 80, label: { show: false } }
+                    ]
+                }
+            }
+        ];
+    } else if (currentIndicator === 'obv') {
+        const obvData = calculateOBV(currentValidData);
+        const maobv = calculateMA(obvData, 30);
+        indicatorLegend = ['OBV', 'MAOBV'];
+        subChartSeries = [
+            { 
+                name: 'OBV', 
+                type: 'line', 
+                data: obvData,
+                lineStyle: { color: '#f59e0b', width: 1 },
+                showSymbol: false
+            },
+            { 
+                name: 'MAOBV', 
+                type: 'line', 
+                data: maobv,
+                lineStyle: { color: '#3b82f6', width: 1 },
+                showSymbol: false
+            }
+        ];
+    } else {
+        indicatorLegend = ['成交量'];
+        const openData = currentValidData.map(d => d.open);
+        const closeData = currentValidData.map(d => d.close);
+        subChartSeries = [
+            {
+                name: '成交量',
+                type: 'bar',
+                data: volumes,
+                itemStyle: {
+                    color: (params) => {
+                        const dataIndex = params.dataIndex;
+                        return closeData[dataIndex] >= openData[dataIndex] ? '#ef232a' : '#14b143';
+                    }
+                }
+            }
+        ];
+    }
+    
+    return {
+        animation: false,
+        legend: {
+            top: 10,
+            right: 10,
+            orient: 'vertical',
+            data: ['MA5', 'MA10', 'MA20', 'MA30', ...indicatorLegend],
+            textStyle: { color: '#888', fontSize: 11 }
+        },
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'cross' },
+            backgroundColor: 'rgba(22, 33, 62, 0.95)',
+            borderColor: '#2a2a3e',
+            textStyle: { color: '#e0e0e0', fontSize: 12 }
+        },
+        grid: [
+            { left: '3%', right: '10%', top: '5%', height: '65%' },
+            { left: '3%', right: '10%', top: '75%', height: '20%' }
+        ],
+        xAxis: [
+            {
+                type: 'category',
+                data: currentDates,
+                scale: true,
+                boundaryGap: false,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { color: '#888', fontSize: 10 },
+                splitLine: { show: false }
+            },
+            {
+                type: 'category',
+                gridIndex: 1,
+                data: currentDates,
+                scale: true,
+                boundaryGap: false,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { show: false },
+                splitLine: { show: false }
+            }
+        ],
+        yAxis: [
+            {
+                scale: true,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { color: '#888', fontSize: 10 },
+                splitLine: { lineStyle: { color: '#1a1a2e' } }
+            },
+            {
+                scale: true,
+                gridIndex: 1,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { color: '#888', fontSize: 10 },
+                splitLine: { lineStyle: { color: '#1a1a2e' } },
+                min: currentIndicator === 'rsi' ? 0 : (currentIndicator === 'kdj' ? -20 : undefined),
+                max: currentIndicator === 'rsi' ? 100 : (currentIndicator === 'kdj' ? 120 : undefined)
+            }
+        ],
+        dataZoom: [
+            { type: 'inside', xAxisIndex: [0, 1], start: 50, end: 100 },
+            { type: 'slider', xAxisIndex: [0, 1], start: 50, end: 100, height: 20, bottom: 10 }
+        ],
+        series: [
+            {
+                name: 'K线',
+                type: 'candlestick',
+                data: candleData,
+                itemStyle: {
+                    color: '#ef232a',
+                    color0: '#14b143',
+                    borderColor: '#ef232a',
+                    borderColor0: '#14b143'
+                }
+            },
+            {
+                name: 'MA5',
+                type: 'line',
+                data: ma5,
+                smooth: true,
+                showSymbol: false,
+                lineStyle: { color: '#f59e0b', width: 1 }
+            },
+            {
+                name: 'MA10',
+                type: 'line',
+                data: ma10,
+                smooth: true,
+                showSymbol: false,
+                lineStyle: { color: '#3b82f6', width: 1 }
+            },
+            {
+                name: 'MA20',
+                type: 'line',
+                data: ma20,
+                smooth: true,
+                showSymbol: false,
+                lineStyle: { color: '#a855f7', width: 1 }
+            },
+            {
+                name: 'MA30',
+                type: 'line',
+                data: ma30,
+                smooth: true,
+                showSymbol: false,
+                lineStyle: { color: '#ec4899', width: 1 }
+            },
+            ...subChartSeries.map(s => ({
+                ...s,
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                smooth: s.type === 'line' ? true : undefined,
+                showSymbol: s.type === 'line' ? false : undefined,
+                lineStyle: s.type === 'line' ? { width: 1 } : undefined
+            }))
+        ]
+    };
+}
+
+function initCharts() {
+    if (!mainChart) {
+        mainChart = echarts.init(document.getElementById('combined-chart'));
+        window.addEventListener('resize', () => mainChart.resize());
+
+        // 绑定鼠标移动事件
+        mainChart.on('updateAxisPointer', function(params) {
+            const dataIndex = params.dataIndex;
+            if (currentChartType === 'timeline') {
+                if (dataIndex >= 0 && dataIndex < timelineData.length) {
+                    updateTimelinePriceInfo(timelineData[dataIndex]);
+                }
+            } else {
+                if (dataIndex >= 0 && dataIndex < currentValidData.length) {
+                    updatePriceInfo(currentDates[dataIndex]);
+                }
+            }
+        });
+    }
+}
+
+function getRealtimeOption() {
+    const times = realtimeData.map(d => d.time);
+    const prices = realtimeData.map(d => d.price);
+    const volumes = realtimeData.map(d => d.volume);
+    
+    // 计算基准价格（第一笔交易的价格）
+    const basePrice = realtimeData.length > 0 ? realtimeData[0].price : 0;
+    
+    return {
+        animation: false,
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'cross' },
+            backgroundColor: 'rgba(22, 33, 62, 0.95)',
+            borderColor: '#2a2a3e',
+            textStyle: { color: '#e0e0e0', fontSize: 12 },
+            formatter: function(params) {
+                const dataIndex = params[0].dataIndex;
+                const data = realtimeData[dataIndex];
+                if (!data) return '';
+                
+                const change = data.price - basePrice;
+                const changePct = basePrice > 0 ? (change / basePrice * 100).toFixed(2) : 0;
+                const color = change >= 0 ? '#ef232a' : '#14b143';
+                const sign = change >= 0 ? '+' : '';
+                
+                return `
+                    <div style="padding: 5px;">
+                        <div style="color: #888; margin-bottom: 5px;">${data.time}</div>
+                        <div style="color: ${color}; font-weight: bold;">价格: ${data.price.toFixed(2)}</div>
+                        <div style="color: ${color};">涨跌: ${sign}${change.toFixed(2)} (${sign}${changePct}%)</div>
+                        <div style="color: #888;">成交量: ${data.volume ? (data.volume / 10000).toFixed(0) + '万' : '-'}</div>
+                    </div>
+                `;
+            }
+        },
+        grid: [
+            { left: '3%', right: '10%', top: '5%', height: '60%' },
+            { left: '3%', right: '10%', top: '70%', height: '25%' }
+        ],
+        xAxis: [
+            {
+                type: 'category',
+                data: times,
+                scale: true,
+                boundaryGap: false,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { 
+                    color: '#888', 
+                    fontSize: 10,
+                    interval: 29,
+                    formatter: function(value) {
+                        return value;
+                    }
+                },
+                splitLine: { show: false }
+            },
+            {
+                type: 'category',
+                gridIndex: 1,
+                data: times,
+                scale: true,
+                boundaryGap: false,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { show: false },
+                splitLine: { show: false }
+            }
+        ],
+        yAxis: [
+            {
+                scale: true,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { 
+                    color: '#888', 
+                    fontSize: 10,
+                    formatter: function(value) {
+                        return value.toFixed(2);
+                    }
+                },
+                splitLine: { 
+                    lineStyle: { color: '#2a2a3e', type: 'dashed' }
+                }
+            },
+            {
+                scale: true,
+                gridIndex: 1,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { 
+                    color: '#888', 
+                    fontSize: 10,
+                    formatter: function(value) {
+                        return (value / 10000).toFixed(0) + '万';
+                    }
+                },
+                splitLine: { show: false }
+            }
+        ],
+        series: [
+            {
+                name: '价格',
+                type: 'line',
+                data: prices,
+                smooth: true,
+                showSymbol: false,
+                lineStyle: {
+                    color: '#3b82f6',
+                    width: 1
+                },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(59, 130, 246, 0.3)' },
+                            { offset: 1, color: 'rgba(59, 130, 246, 0.05)' }
+                        ]
+                    }
+                }
+            },
+            {
+                name: '成交量',
+                type: 'bar',
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: volumes,
+                itemStyle: {
+                    color: function(params) {
+                        const idx = params.dataIndex;
+                        if (idx === 0) return '#ef232a';
+                        return prices[idx] >= prices[idx - 1] ? '#ef232a' : '#14b143';
+                    }
+                }
+            }
+        ]
+    };
+}
+
+function getTimelineOption() {
+    const times = timelineData.map(d => d.time);
+    const prices = timelineData.map(d => d.price);
+    const avgPrices = timelineData.map(d => d.avg_price);
+    const volumes = timelineData.map(d => d.volume);
+    
+    // 计算昨日收盘价作为基准
+    const basePrice = timelineData.length > 0 ? timelineData[0].price : 0;
+    
+    return {
+        animation: false,
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'cross' },
+            backgroundColor: 'rgba(22, 33, 62, 0.95)',
+            borderColor: '#2a2a3e',
+            textStyle: { color: '#e0e0e0', fontSize: 12 },
+            formatter: function(params) {
+                const dataIndex = params[0].dataIndex;
+                const data = timelineData[dataIndex];
+                if (!data) return '';
+                
+                const change = data.price - basePrice;
+                const changePct = basePrice > 0 ? (change / basePrice * 100).toFixed(2) : 0;
+                const color = change >= 0 ? '#ef232a' : '#14b143';
+                const sign = change >= 0 ? '+' : '';
+                
+                return `
+                    <div style="padding: 5px;">
+                        <div style="color: #888; margin-bottom: 5px;">${data.time}</div>
+                        <div style="color: ${color}; font-weight: bold;">价格: ${data.price.toFixed(2)}</div>
+                        <div style="color: ${color};">涨跌: ${sign}${change.toFixed(2)} (${sign}${changePct}%)</div>
+                        <div style="color: #f59e0b;">均价: ${data.avg_price ? data.avg_price.toFixed(2) : '-'}</div>
+                        <div style="color: #888;">成交量: ${data.volume ? (data.volume / 10000).toFixed(0) + '万' : '-'}</div>
+                    </div>
+                `;
+            }
+        },
+        grid: [
+            { left: '3%', right: '10%', top: '5%', height: '60%' },
+            { left: '3%', right: '10%', top: '70%', height: '25%' }
+        ],
+        xAxis: [
+            {
+                type: 'category',
+                data: times,
+                scale: true,
+                boundaryGap: false,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { 
+                    color: '#888', 
+                    fontSize: 10,
+                    interval: 29,  // 每30个点显示一个标签
+                    formatter: function(value) {
+                        return value;
+                    }
+                },
+                splitLine: { show: false }
+            },
+            {
+                type: 'category',
+                gridIndex: 1,
+                data: times,
+                scale: true,
+                boundaryGap: false,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { show: false },
+                splitLine: { show: false }
+            }
+        ],
+        yAxis: [
+            {
+                scale: true,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { 
+                    color: '#888', 
+                    fontSize: 10,
+                    formatter: function(value) {
+                        return value.toFixed(2);
+                    }
+                },
+                splitLine: { lineStyle: { color: '#1a1a2e' } },
+                min: function(value) {
+                    return value.min - (value.max - value.min) * 0.1;
+                },
+                max: function(value) {
+                    return value.max + (value.max - value.min) * 0.1;
+                }
+            },
+            {
+                scale: true,
+                gridIndex: 1,
+                axisLine: { lineStyle: { color: '#2a2a3e' } },
+                axisLabel: { color: '#888', fontSize: 10 },
+                splitLine: { lineStyle: { color: '#1a1a2e' } }
+            }
+        ],
+        dataZoom: [
+            { type: 'inside', xAxisIndex: [0, 1], start: 0, end: 100 },
+            { type: 'slider', xAxisIndex: [0, 1], start: 0, end: 100, height: 20, bottom: 10 }
+        ],
+        series: [
+            {
+                name: '价格',
+                type: 'line',
+                data: prices,
+                smooth: false,
+                showSymbol: false,
+                lineStyle: { color: '#3b82f6', width: 1.5 },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(59, 130, 246, 0.3)' },
+                            { offset: 1, color: 'rgba(59, 130, 246, 0.05)' }
+                        ]
+                    }
+                }
+            },
+            {
+                name: '均价',
+                type: 'line',
+                data: avgPrices,
+                smooth: false,
+                showSymbol: false,
+                lineStyle: { color: '#f59e0b', width: 1 }
+            },
+            {
+                name: '成交量',
+                type: 'bar',
+                xAxisIndex: 1,
+                yAxisIndex: 1,
+                data: volumes,
+                itemStyle: {
+                    color: function(params) {
+                        const dataIndex = params.dataIndex;
+                        if (dataIndex === 0) return '#ef232a';
+                        const currentPrice = prices[dataIndex];
+                        const prevPrice = prices[dataIndex - 1];
+                        return currentPrice >= prevPrice ? '#ef232a' : '#14b143';
+                    }
+                }
+            }
+        ]
+    };
+}
+
+function renderCharts() {
+    console.log('renderCharts called, chartType:', currentChartType);
+    if (!mainChart) return;
+    
+    if (currentChartType === 'timeline') {
+        if (timelineData.length > 0) {
+            const option = getTimelineOption();
+            mainChart.setOption(option, true);
+        } else {
+            console.log('No timeline data available');
+        }
+    } else {
+        if (priceData.length > 0) {
+            const option = getCombinedOption();
+            mainChart.setOption(option, true);
+        } else {
+            console.log('No price data available');
+        }
+    }
+}
+
+async function switchChartType(type) {
+    currentChartType = type;
+
+    ['timeline', 'kline', 'week', 'month'].forEach(t => {
+        const btn = document.getElementById(`btn-${t}`);
+        if (btn) {
+            btn.className = t === type
+                ? 'px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition-colors'
+                : 'px-3 py-1.5 text-sm bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text hover:bg-bloomberg-border transition-colors';
+        }
+    });
+
+    if (type === 'timeline') {
+        // 分时图：总是重新加载数据
+        await loadTimelineData();
+    }
+
+    // 确保数据加载完成后再渲染
+    renderCharts();
+}
+
+let realtimeData = [];
+let clockInterval = null;
+let currentState = 'idle'; // idle, trading, non_trading
+
+function toggleRealtime() {
+    isRealtimeMode = !isRealtimeMode;
+    const btn = document.getElementById('btn-realtime-toggle');
+    
+    if (isRealtimeMode) {
+        btn.textContent = '📡 关闭实时行情';
+        btn.className = 'w-full px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors';
+        startRealtimeSystem();
+    } else {
+        btn.textContent = '📡 开启实时行情';
+        btn.className = 'w-full px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors';
+        stopRealtimeSystem();
+    }
+}
+
+function startRealtimeSystem() {
+    // 首次加载全部分时数据（无论是否交易时间）
+    loadRealtimeData(true);
+    
+    // 启动时钟状态机，每秒检查一次
+    clockInterval = setInterval(updateClockState, 1000);
+    updateClockState(); // 立即执行一次
+    console.log('实时行情系统已启动');
+}
+
+function stopRealtimeSystem() {
+    // 停止时钟状态机
+    if (clockInterval) {
+        clearInterval(clockInterval);
+        clockInterval = null;
+    }
+    // 停止数据更新
+    stopDataUpdate();
+    currentState = 'idle';
+    console.log('实时行情系统已停止');
+}
+
+function updateClockState() {
+    const trading = isTradingTime();
+    const newState = trading ? 'trading' : 'non_trading';
+    
+    // 状态切换
+    if (currentState !== newState) {
+        const oldState = currentState;
+        currentState = newState;
+        
+        console.log(`状态切换: ${oldState} -> ${newState}`);
+        
+        if (newState === 'trading') {
+            // 进入交易时间，启动数据更新
+            startDataUpdate();
+        } else {
+            // 进入非交易时间，停止数据更新
+            stopDataUpdate();
+        }
+    }
+}
+
+function startDataUpdate() {
+    // 每30秒增量更新
+    if (!realtimeInterval) {
+        realtimeInterval = setInterval(() => loadRealtimeData(false), 30000);
+        console.log('数据更新已启动');
+    }
+}
+
+function stopDataUpdate() {
+    if (realtimeInterval) {
+        clearInterval(realtimeInterval);
+        realtimeInterval = null;
+        console.log('数据更新已停止');
+    }
+}
+
+function isTradingTime() {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const timeNum = hours * 100 + minutes;
+    
+    // 上午交易时间: 9:30 - 11:30
+    const morningStart = 930;
+    const morningEnd = 1130;
+    // 下午交易时间: 13:00 - 15:00
+    const afternoonStart = 1300;
+    const afternoonEnd = 1500;
+    
+    return (timeNum >= morningStart && timeNum <= morningEnd) ||
+           (timeNum >= afternoonStart && timeNum <= afternoonEnd);
+}
+
+async function loadRealtimeData(fullLoad = false) {
+    try {
+        console.log('Loading realtime data for', stockSymbol, fullLoad ? '(full)' : '(incremental)');
+        
+        // 更新实时价格信息
+        const response = await fetch(`/api/v1/data/realtime/${stockSymbol}`);
+        const data = await response.json();
+        updateRealtimePriceInfo(data);
+        
+        // 如果是首次加载或者数据为空，获取全部分时数据
+        if (fullLoad || realtimeData.length === 0) {
+            const intradayResponse = await fetch(`https://push2.eastmoney.com/api/qt/stock/trends2/get?secid=${stockSymbol.startsWith('6') ? '1' : '0'}.${stockSymbol}&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58`);
+            const intradayResult = await intradayResponse.json();
+            
+            if (intradayResult.data && intradayResult.data.trends) {
+                realtimeData = intradayResult.data.trends.map(item => {
+                    const parts = item.split(',');
+                    const timeStr = parts[0];
+                    const timeOnly = timeStr.includes(' ') ? timeStr.split(' ')[1] : timeStr;
+                    return {
+                        time: timeOnly,
+                        price: parseFloat(parts[2]),
+                        volume: parseFloat(parts[5]),
+                        amount: parseFloat(parts[6])
+                    };
+                });
+                console.log('Loaded full realtime data:', realtimeData.length, 'records');
+            }
+        } else {
+            // 增量更新：只获取最新一条数据
+            const intradayResponse = await fetch(`https://push2.eastmoney.com/api/qt/stock/trends2/get?secid=${stockSymbol.startsWith('6') ? '1' : '0'}.${stockSymbol}&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58`);
+            const intradayResult = await intradayResponse.json();
+            
+            if (intradayResult.data && intradayResult.data.trends) {
+                const trends = intradayResult.data.trends;
+                // 只处理最后一条数据
+                const lastItem = trends[trends.length - 1];
+                if (lastItem) {
+                    const parts = lastItem.split(',');
+                    const timeStr = parts[0];
+                    const timeOnly = timeStr.includes(' ') ? timeStr.split(' ')[1] : timeStr;
+                    const newItem = {
+                        time: timeOnly,
+                        price: parseFloat(parts[2]),
+                        volume: parseFloat(parts[5]),
+                        amount: parseFloat(parts[6])
+                    };
+                    
+                    // 检查是否是新数据
+                    const lastExisting = realtimeData[realtimeData.length - 1];
+                    if (!lastExisting || lastExisting.time !== newItem.time) {
+                        realtimeData.push(newItem);
+                        console.log('Added new data point:', newItem.time);
+                    }
+                }
+            }
+        }
+        
+        // 如果开启了实时模式，更新图表
+        if (isRealtimeMode && mainChart && realtimeData.length > 0) {
+            const option = getRealtimeOption();
+            mainChart.setOption(option, true);
+        }
+    } catch (error) {
+        console.error('Failed to load realtime data:', error);
+    }
+}
+
+function updateRealtimePriceInfo(data) {
+    if (!data) return;
+
+    const change = data.change || 0;
+    const changePct = data.change_pct || 0;
+    const color = change >= 0 ? '#ef232a' : '#14b143';
+    const sign = change >= 0 ? '+' : '';
+
+    document.getElementById('info-date').textContent = '实时';
+    document.getElementById('current-price').textContent = data.price ? data.price.toFixed(2) : '-';
+    document.getElementById('current-price').style.color = color;
+    document.getElementById('price-change').textContent = sign + change.toFixed(2);
+    document.getElementById('price-change').style.color = color;
+    document.getElementById('price-change-pct').textContent = sign + changePct.toFixed(2) + '%';
+    document.getElementById('price-change-pct').style.color = color;
+    document.getElementById('today-open').textContent = data.open ? data.open.toFixed(2) : '-';
+    document.getElementById('today-high').textContent = data.high ? data.high.toFixed(2) : '-';
+    document.getElementById('today-low').textContent = data.low ? data.low.toFixed(2) : '-';
+    document.getElementById('pre-close').textContent = data.pre_close ? data.pre_close.toFixed(2) : '-';
+    document.getElementById('today-volume').textContent = data.volume ? (data.volume / 10000).toFixed(0) + '万' : '-';
+    document.getElementById('today-amount').textContent = data.amount ? (data.amount / 100000000).toFixed(2) + '亿' : '-';
+}
+
+async function loadTimelineData(date) {
+    try {
+        console.log('Loading timeline data for', stockSymbol, date);
+        
+        // 直接查询分时数据，不使用日线日期
+        const url = date
+            ? `/api/v1/data/stock/${stockSymbol}/timeline?date=${date}`
+            : `/api/v1/data/stock/${stockSymbol}/timeline`;
+        const response = await fetch(url);
+        const result = await response.json();
+        timelineData = result.data || [];
+        currentTimelineDate = result.date;
+        console.log('Loaded timeline data:', timelineData.length, 'records, date:', currentTimelineDate);
+
+        if (timelineData.length > 0) {
+            updateTimelinePriceInfo(timelineData[timelineData.length - 1]);
+        } else {
+            console.log('No timeline data found');
+        }
+    } catch (error) {
+        console.error('Failed to load timeline data:', error);
+        timelineData = [];
+    }
+}
+
+function updateTimelinePriceInfo(data) {
+    if (!data) return;
+
+    const basePrice = timelineData.length > 0 ? timelineData[0].price : data.price;
+    const change = data.price - basePrice;
+    const changePct = basePrice > 0 ? (change / basePrice * 100).toFixed(2) : 0;
+
+    const color = change >= 0 ? '#ef232a' : '#14b143';
+    const sign = change >= 0 ? '+' : '';
+
+    document.getElementById('info-date').textContent = currentTimelineDate || '-';
+    document.getElementById('current-price').textContent = data.price.toFixed(2);
+    document.getElementById('current-price').style.color = color;
+    document.getElementById('price-change').textContent = sign + change.toFixed(2);
+    document.getElementById('price-change').style.color = color;
+    document.getElementById('price-change-pct').textContent = sign + changePct + '%';
+    document.getElementById('price-change-pct').style.color = color;
+
+    // 分时图不显示开高低收，显示为-
+    document.getElementById('today-open').textContent = timelineData.length > 0 ? timelineData[0].price.toFixed(2) : '-';
+    document.getElementById('today-high').textContent = '-';
+    document.getElementById('today-low').textContent = '-';
+    document.getElementById('pre-close').textContent = basePrice.toFixed(2);
+    document.getElementById('today-volume').textContent = data.volume ? (data.volume / 10000).toFixed(0) + '万' : '-';
+    document.getElementById('today-amount').textContent = '-';
+}
+
+function switchIndicator(indicator) {
+    currentIndicator = indicator;
+    
+    ['volume', 'macd', 'kdj', 'rsi', 'obv'].forEach(ind => {
+        const btn = document.getElementById(`btn-${ind}`);
+        if (btn) {
+            btn.className = ind === indicator 
+                ? 'px-2 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors'
+                : 'px-2 py-1.5 text-xs bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text hover:bg-bloomberg-border transition-colors';
+        }
+    });
+    
+    renderCharts();
+}
+
+function updatePriceInfo(date) {
+    if (priceData.length === 0) return;
+    
+    const data = priceData.find(d => d.trade_date === date);
+    if (!data) return;
+    
+    const prevData = priceData.find((d, i) => i > priceData.indexOf(data));
+    const preClose = prevData ? prevData.close : data.open;
+    
+    const change = data.close - preClose;
+    const changePct = (change / preClose * 100).toFixed(2);
+    
+    const color = change >= 0 ? '#ef232a' : '#14b143';
+    const sign = change >= 0 ? '+' : '';
+    
+    document.getElementById('info-date').textContent = date;
+    document.getElementById('current-price').textContent = data.close.toFixed(2);
+    document.getElementById('current-price').style.color = color;
+    document.getElementById('price-change').textContent = sign + change.toFixed(2);
+    document.getElementById('price-change').style.color = color;
+    document.getElementById('price-change-pct').textContent = sign + changePct + '%';
+    document.getElementById('price-change-pct').style.color = color;
+    
+    document.getElementById('today-open').textContent = data.open ? data.open.toFixed(2) : '-';
+    document.getElementById('today-high').textContent = data.high ? data.high.toFixed(2) : '-';
+    document.getElementById('today-low').textContent = data.low ? data.low.toFixed(2) : '-';
+    document.getElementById('pre-close').textContent = preClose ? preClose.toFixed(2) : '-';
+    document.getElementById('today-volume').textContent = data.volume ? (data.volume / 10000).toFixed(0) + '万' : '-';
+    document.getElementById('today-amount').textContent = data.amount ? (data.amount / 100000000).toFixed(2) + '亿' : '-';
+}
+
+async function loadPriceHistory() {
+    try {
+        console.log('Loading price history for', stockSymbol);
+        
+        // 获取股票统计信息（真实记录数）
+        const statsResponse = await fetch(`/api/v1/data/stock/${stockSymbol}/stats`);
+        const statsData = await statsResponse.json();
+        console.log('Stock stats:', statsData);
+        
+        // 显示真实记录数（最大9999）
+        document.getElementById('records-count').textContent = `${statsData.total_records} 条记录`;
+        
+        // 获取1年价格历史数据
+        const response = await fetch(`/api/v1/data/stock/${stockSymbol}/daily?days=365`);
+        priceData = await response.json();
+        console.log('Loaded price data:', priceData.length, 'records');
+        if (priceData.length > 0) {
+            console.log('First record:', priceData[0]);
+            console.log('Last record:', priceData[priceData.length - 1]);
+        }
+        
+        const table = document.getElementById('price-history');
+        if (priceData.length === 0) {
+            table.innerHTML = '<tr><td colspan="7" class="px-3 py-4 text-center text-bloomberg-muted">暂无数据</td></tr>';
+            return;
+        }
+        
+        table.innerHTML = priceData.map((row, index) => {
+            const prevRow = priceData[index + 1];
+            const change = prevRow ? ((row.close - prevRow.close) / prevRow.close * 100).toFixed(2) : '-';
+            const changeClass = change > 0 ? 'text-bloomberg-success' : change < 0 ? 'text-bloomberg-danger' : 'text-bloomberg-muted';
+            return `
+                <tr class="border-t border-bloomberg-border">
+                    <td class="px-3 py-2 text-bloomberg-text">${row.trade_date}</td>
+                    <td class="px-3 py-2 text-right text-bloomberg-text">${row.open || '-'}</td>
+                    <td class="px-3 py-2 text-right text-bloomberg-text">${row.high || '-'}</td>
+                    <td class="px-3 py-2 text-right text-bloomberg-text">${row.low || '-'}</td>
+                    <td class="px-3 py-2 text-right text-bloomberg-text font-medium">${row.close || '-'}</td>
+                    <td class="px-3 py-2 text-right text-bloomberg-muted">${row.volume ? (row.volume / 10000).toFixed(0) + '万' : '-'}</td>
+                    <td class="px-3 py-2 text-right ${changeClass}">${change !== '-' ? change + '%' : '-'}</td>
+                </tr>
+            `;
+        }).join('');
+        
+        if (priceData.length > 0) {
+            updatePriceInfo(priceData[0].trade_date);
+        }
+        
+        if (priceData.length >= 5) {
+            initCharts();
+            renderCharts();
+        }
+    } catch (error) {
+        console.error('Failed to load price history:', error);
+    }
+}
+
+async function syncTimeline(date) {
+    try {
+        const url = date
+            ? `/api/v1/data/sync/stock-timeline/${stockSymbol}?date=${date}`
+            : `/api/v1/data/sync/stock-timeline/${stockSymbol}`;
+        const response = await fetch(url, { method: 'POST' });
+        const data = await response.json();
+        alert(`分时数据同步完成，共 ${data.count} 条记录`);
+        // 同步完成后重新加载分时数据
+        if (currentChartType === 'timeline') {
+            await loadTimelineData(date);
+            renderCharts();
+        }
+    } catch (error) {
+        alert('同步失败: ' + error.message);
+    }
+}
+
+async function syncDaily(days) {
+    try {
+        const response = await fetch(`/api/v1/data/sync/stock-daily/${stockSymbol}?days=${days}`, { method: 'POST' });
+        const data = await response.json();
+        alert(`同步完成，共 ${data.count} 条数据`);
+        loadPriceHistory();
+    } catch (error) {
+        alert('同步失败: ' + error.message);
+    }
+}
+
+let isInWatchlist = false;
+
+async function checkWatchlistStatus() {
+    try {
+        const response = await fetch('/api/v1/data/watchlist');
+        const data = await response.json();
+        isInWatchlist = data.items.some(item => item.stock.symbol === stockSymbol);
+        updateWatchlistButton();
+    } catch (error) {
+        console.error('检查自选股状态失败:', error);
+    }
+}
+
+function updateWatchlistButton() {
+    const btn = document.getElementById('btn-watchlist');
+    if (isInWatchlist) {
+        btn.textContent = '已加入自选股';
+        btn.className = 'w-full px-4 py-2 bg-bloomberg-border text-bloomberg-muted rounded text-sm cursor-not-allowed';
+    } else {
+        btn.textContent = '加入自选股';
+        btn.className = 'w-full px-4 py-2 bg-bloomberg-success text-white rounded text-sm hover:bg-green-600 transition-colors';
+    }
+}
+
+async function toggleWatchlist() {
+    if (isInWatchlist) {
+        alert('该股票已在自选股中');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/data/watchlist/${stockSymbol}`, { method: 'POST' });
+        if (response.ok) {
+            isInWatchlist = true;
+            updateWatchlistButton();
+            alert('已加入自选股');
+        } else {
+            const error = await response.json();
+            alert('添加失败: ' + (error.detail || '未知错误'));
+        }
+    } catch (error) {
+        alert('添加失败: ' + error.message);
+    }
+}
+
+async function runFactorScreen() {
+    const factor = document.getElementById('factor-select').value;
+    const operator = document.getElementById('factor-operator').value;
+    const value = document.getElementById('factor-value').value;
+    const sort = document.getElementById('factor-sort').value;
+    
+    if (!factor) {
+        alert('请选择因子');
+        return;
+    }
+    
+    if (!value) {
+        alert('请输入筛选值');
+        return;
+    }
+    
+    const resultsDiv = document.getElementById('factor-results');
+    resultsDiv.innerHTML = '<div class="text-xs text-bloomberg-muted text-center py-4">筛选中...</div>';
+    
+    try {
+        const response = await fetch('/api/v1/factor/screen', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                factor: factor,
+                operator: operator,
+                value: parseFloat(value),
+                sort: sort,
+                limit: 20
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('筛选请求失败');
+        }
+        
+        const data = await response.json();
+        
+        if (data.stocks && data.stocks.length > 0) {
+            resultsDiv.innerHTML = `
+                <div class="text-xs text-bloomberg-muted mb-2">找到 ${data.total} 只股票，显示前 ${data.stocks.length} 只</div>
+                <div class="space-y-2">
+                    ${data.stocks.map((s, i) => `
+                        <div class="flex items-center justify-between p-2 bg-bloomberg-card rounded cursor-pointer hover:bg-bloomberg-border" onclick="window.location.href='/ui/stock/${s.symbol}'">
+                            <div>
+                                <span class="text-bloomberg-primary font-medium">${s.symbol}</span>
+                                <span class="text-bloomberg-text ml-2">${s.name}</span>
+                            </div>
+                            <div class="text-bloomberg-muted">${s.value ? s.value.toFixed(2) : '-'}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        } else {
+            resultsDiv.innerHTML = '<div class="text-xs text-bloomberg-muted text-center py-4">未找到符合条件的股票</div>';
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = `<div class="text-xs text-bloomberg-danger text-center py-4">筛选失败: ${error.message}</div>`;
+    }
+}
+
+checkWatchlistStatus();
+loadPriceHistory();
+</script>
+{% endblock %}

@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}股票列表 - MacroQuant{% endblock %}
+{% block page_title %}股票列表{% endblock %}
+
+{% block content %}
+<div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg mb-6">
+    <div class="px-4 py-3 border-b border-bloomberg-border">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <button onclick="showTab('all')" id="tab-all" class="px-4 py-2 text-sm font-medium text-bloomberg-text bg-bloomberg-card rounded">
+                    全部股票
+                </button>
+                <button onclick="showTab('watchlist')" id="tab-watchlist" class="px-4 py-2 text-sm font-medium text-bloomberg-muted hover:text-bloomberg-text">
+                    自选股
+                </button>
+            </div>
+            <div class="flex items-center gap-4">
+                <input type="text" id="search-input" placeholder="搜索代码、名称或拼音（如ywk）..." 
+                    class="px-4 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text placeholder-bloomberg-muted focus:outline-none focus:border-bloomberg-primary text-sm w-72">
+                <button onclick="syncStockList()" class="px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors">
+                    同步股票列表
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="all-stocks-tab" class="p-4">
+        <div class="overflow-x-auto">
+            <table class="data-table w-full">
+                <thead>
+                    <tr class="text-left text-bloomberg-muted">
+                        <th class="px-3 py-2">代码</th>
+                        <th class="px-3 py-2">名称</th>
+                        <th class="px-3 py-2">板块</th>
+                        <th class="px-3 py-2">状态</th>
+                        <th class="px-3 py-2">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="stocks-table">
+                    {% for stock in stocks %}
+                    <tr class="border-t border-bloomberg-border hover:bg-bloomberg-card cursor-pointer" onclick="window.location.href='/ui/stock/{{ stock.symbol }}'">
+                        <td class="px-3 py-2 text-bloomberg-primary font-medium">{{ stock.symbol }}</td>
+                        <td class="px-3 py-2 text-bloomberg-text">{{ stock.name }}</td>
+                        <td class="px-3 py-2 text-bloomberg-muted">{{ stock.exchange }}</td>
+                        <td class="px-3 py-2">
+                            <span class="px-2 py-1 text-xs rounded {% if stock.is_active %}bg-bloomberg-success bg-opacity-20 text-bloomberg-success{% else %}bg-bloomberg-danger bg-opacity-20 text-bloomberg-danger{% endif %}">
+                                {{ '正常' if stock.is_active else '停牌' }}
+                            </span>
+                        </td>
+                        <td class="px-3 py-2">
+                            <a href="/ui/stock/{{ stock.symbol }}" class="text-bloomberg-primary hover:underline text-sm mr-2">详情</a>
+                            <button onclick="event.stopPropagation(); addToWatchlist({{ stock.id }}, '{{ stock.symbol }}')" class="text-bloomberg-warning hover:underline text-sm">
+                                自选
+                            </button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-3 py-4 text-center text-bloomberg-muted">暂无股票数据，点击"同步股票列表"获取数据</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div id="watchlist-tab" class="p-4 hidden">
+        <div class="overflow-x-auto">
+            <table class="data-table w-full">
+                <thead>
+                    <tr class="text-left text-bloomberg-muted">
+                        <th class="px-3 py-2">代码</th>
+                        <th class="px-3 py-2">名称</th>
+                        <th class="px-3 py-2">交易所</th>
+                        <th class="px-3 py-2">备注</th>
+                        <th class="px-3 py-2">添加时间</th>
+                        <th class="px-3 py-2">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="watchlist-table">
+                    <tr>
+                        <td colspan="6" class="px-3 py-4 text-center text-bloomberg-muted">加载中...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentTab = 'all';
+
+function showTab(tab) {
+    currentTab = tab;
+    document.getElementById('tab-all').className = tab === 'all' 
+        ? 'px-4 py-2 text-sm font-medium text-bloomberg-text bg-bloomberg-card rounded'
+        : 'px-4 py-2 text-sm font-medium text-bloomberg-muted hover:text-bloomberg-text';
+    document.getElementById('tab-watchlist').className = tab === 'watchlist'
+        ? 'px-4 py-2 text-sm font-medium text-bloomberg-text bg-bloomberg-card rounded'
+        : 'px-4 py-2 text-sm font-medium text-bloomberg-muted hover:text-bloomberg-text';
+    
+    document.getElementById('all-stocks-tab').classList.toggle('hidden', tab !== 'all');
+    document.getElementById('watchlist-tab').classList.toggle('hidden', tab !== 'watchlist');
+    
+    if (tab === 'watchlist') {
+        loadWatchlist();
+    }
+}
+
+async function loadWatchlist() {
+    try {
+        const response = await fetch('/api/v1/data/watchlist');
+        const data = await response.json();
+        
+        const table = document.getElementById('watchlist-table');
+        if (data.items.length === 0) {
+            table.innerHTML = '<tr><td colspan="6" class="px-3 py-4 text-center text-bloomberg-muted">暂无自选股，点击股票列表中的"自选"按钮添加</td></tr>';
+            return;
+        }
+        
+        table.innerHTML = data.items.map(item => `
+            <tr class="border-t border-bloomberg-border hover:bg-bloomberg-card cursor-pointer" onclick="window.location.href='/ui/stock/${item.stock?.symbol}'">
+                <td class="px-3 py-2 text-bloomberg-primary font-medium">${item.stock?.symbol || '-'}</td>
+                <td class="px-3 py-2 text-bloomberg-text">${item.stock?.name || '-'}</td>
+                <td class="px-3 py-2 text-bloomberg-muted">${item.stock?.exchange || '-'}</td>
+                <td class="px-3 py-2 text-bloomberg-muted">${item.notes || '-'}</td>
+                <td class="px-3 py-2 text-bloomberg-muted">${item.created_at ? new Date(item.created_at).toLocaleDateString('zh-CN') : '-'}</td>
+                <td class="px-3 py-2">
+                    <a href="/ui/stock/${item.stock?.symbol}" class="text-bloomberg-primary hover:underline text-sm mr-2">详情</a>
+                    <button onclick="event.stopPropagation(); removeFromWatchlist(${item.id})" class="text-bloomberg-danger hover:underline text-sm">
+                        移除
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load watchlist:', error);
+        const table = document.getElementById('watchlist-table');
+        table.innerHTML = '<tr><td colspan="6" class="px-3 py-4 text-center text-bloomberg-danger">加载自选股失败</td></tr>';
+    }
+}
+
+async function addToWatchlist(stockId, symbol) {
+    try {
+        const response = await fetch('/api/v1/data/watchlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stock_id: stockId })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '添加失败');
+        }
+        
+        alert(`${symbol} 已添加到自选股`);
+    } catch (error) {
+        alert('添加失败: ' + error.message);
+    }
+}
+
+async function removeFromWatchlist(itemId) {
+    if (!confirm('确定要从自选股中移除吗？')) return;
+    
+    try {
+        const response = await fetch(`/api/v1/data/watchlist/${itemId}`, { method: 'DELETE' });
+        
+        if (!response.ok) {
+            throw new Error('移除失败');
+        }
+        
+        loadWatchlist();
+    } catch (error) {
+        alert('移除失败: ' + error.message);
+    }
+}
+
+async function syncStockList() {
+    try {
+        const response = await fetch('/api/v1/data/sync/stock-list', { method: 'POST' });
+        const data = await response.json();
+        alert(`同步完成，共 ${data.count} 只股票`);
+        window.location.reload();
+    } catch (error) {
+        alert('同步失败: ' + error.message);
+    }
+}
+
+let searchTimeout = null;
+
+document.getElementById('search-input').addEventListener('input', function(e) {
+    const search = e.target.value.trim();
+    
+    // 清除之前的定时器
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+    
+    // 延迟搜索，避免频繁请求
+    searchTimeout = setTimeout(async () => {
+        if (search.length === 0) {
+            // 如果搜索为空，重新加载全部股票
+            window.location.reload();
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/v1/data/stocks?search=${encodeURIComponent(search)}&limit=100`);
+            const data = await response.json();
+            
+            const table = document.getElementById('stocks-table');
+            if (data.items.length === 0) {
+                table.innerHTML = '<tr><td colspan="5" class="px-3 py-4 text-center text-bloomberg-muted">未找到匹配的股票</td></tr>';
+                return;
+            }
+            
+            table.innerHTML = data.items.map(stock => `
+                <tr class="border-t border-bloomberg-border hover:bg-bloomberg-card cursor-pointer" onclick="window.location.href='/ui/stock/${stock.symbol}'">
+                    <td class="px-3 py-2 text-bloomberg-primary font-medium">${stock.symbol}</td>
+                    <td class="px-3 py-2 text-bloomberg-text">${stock.name}</td>
+                    <td class="px-3 py-2 text-bloomberg-muted">${stock.exchange || '-'}</td>
+                    <td class="px-3 py-2">
+                        <span class="px-2 py-1 text-xs rounded ${stock.is_active ? 'bg-bloomberg-success bg-opacity-20 text-bloomberg-success' : 'bg-bloomberg-danger bg-opacity-20 text-bloomberg-danger'}">
+                            ${stock.is_active ? '正常' : '停牌'}
+                        </span>
+                    </td>
+                    <td class="px-3 py-2">
+                        <a href="/ui/stock/${stock.symbol}" class="text-bloomberg-primary hover:underline text-sm mr-2">详情</a>
+                        <button onclick="event.stopPropagation(); addToWatchlist(${stock.id}, '${stock.symbol}')" class="text-bloomberg-warning hover:underline text-sm">
+                            自选
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (error) {
+            console.error('Search failed:', error);
+        }
+    }, 300); // 300ms延迟
+});
+</script>
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}因子选股 - MacroQuant{% endblock %}
+{% block page_title %}因子选股{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg">
+        <div class="px-4 py-3 border-b border-bloomberg-border">
+            <h3 class="text-sm font-semibold text-bloomberg-text">因子库</h3>
+        </div>
+        <div class="p-4">
+            <div id="factor-list" class="space-y-2">
+                <div class="text-center text-bloomberg-muted py-4">暂无因子数据</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="lg:col-span-2 bg-bloomberg-surface border border-bloomberg-border rounded-lg">
+        <div class="px-4 py-3 border-b border-bloomberg-border">
+            <h3 class="text-sm font-semibold text-bloomberg-text">因子配置</h3>
+        </div>
+        <div class="p-4">
+            <div class="text-center text-bloomberg-muted py-8">
+                <p>因子选股功能开发中...</p>
+                <p class="text-xs mt-2">将支持：动量因子、价值因子、质量因子、成长因子等</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg">
+    <div class="px-4 py-3 border-b border-bloomberg-border">
+        <h3 class="text-sm font-semibold text-bloomberg-text">选股结果</h3>
+    </div>
+    <div class="p-4">
+        <div class="text-center text-bloomberg-muted py-4">
+            配置因子后，点击"开始选股"查看结果
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+</script>
+{% endblock %}

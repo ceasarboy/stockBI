@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}资讯影响 - MacroQuant{% endblock %}
+{% block page_title %}资讯影响{% endblock %}
+
+{% block content %}
+<div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg mb-6">
+    <div class="px-4 py-3 border-b border-bloomberg-border flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-bloomberg-text">资讯列表</h3>
+        <button onclick="syncNews()" class="px-4 py-2 bg-bloomberg-primary text-white rounded text-sm hover:bg-blue-600 transition-colors">
+            同步资讯
+        </button>
+    </div>
+    <div class="p-4">
+        <div id="news-list" class="space-y-3">
+            <div class="text-center text-bloomberg-muted py-4">暂无资讯数据</div>
+        </div>
+    </div>
+</div>
+
+<div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg">
+    <div class="px-4 py-3 border-b border-bloomberg-border">
+        <h3 class="text-sm font-semibold text-bloomberg-text">影响分析</h3>
+    </div>
+    <div class="p-4">
+        <div id="impact-analysis" class="text-center text-bloomberg-muted py-4">
+            选择一条资讯查看影响分析
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function syncNews() {
+    alert('资讯同步功能开发中...');
+}
+
+async function loadNews() {
+    document.getElementById('news-list').innerHTML = '<div class="text-center text-bloomberg-muted py-4">暂无资讯数据，请先同步</div>';
+}
+
+loadNews();
+</script>
+{% endblock %}

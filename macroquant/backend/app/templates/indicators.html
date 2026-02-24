@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block title %}技术指标库 - MacroQuant{% endblock %}
+{% block page_title %}技术指标库{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <div class="flex items-center space-x-4">
+        <select id="category-filter" onchange="loadIndicators()" class="px-3 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text">
+            <option value="">全部类别</option>
+            <option value="trend">趋势指标</option>
+            <option value="momentum">动量指标</option>
+            <option value="volume">成交量指标</option>
+            <option value="volatility">波动率指标</option>
+        </select>
+    </div>
+    <div class="flex items-center space-x-2">
+        <button onclick="showAddDialog()" class="px-4 py-2 bg-bloomberg-primary text-white rounded text-sm font-medium hover:bg-blue-600 transition-colors">
+            + 新增指标
+        </button>
+        <button onclick="resetIndicators()" class="px-4 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text text-sm hover:bg-bloomberg-border transition-colors">
+            重置默认
+        </button>
+    </div>
+</div>
+
+<div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg">
+    <div class="overflow-x-auto">
+        <table class="data-table w-full">
+            <thead>
+                <tr class="text-left text-bloomberg-muted border-b border-bloomberg-border">
+                    <th class="px-4 py-3">指标名称</th>
+                    <th class="px-4 py-3">类别</th>
+                    <th class="px-4 py-3">类型</th>
+                    <th class="px-4 py-3">参数</th>
+                    <th class="px-4 py-3">颜色</th>
+                    <th class="px-4 py-3">状态</th>
+                    <th class="px-4 py-3">操作</th>
+                </tr>
+            </thead>
+            <tbody id="indicators-table">
+                <tr>
+                    <td colspan="7" class="px-4 py-8 text-center text-bloomberg-muted">加载中...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="add-dialog" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-bloomberg-surface border border-bloomberg-border rounded-lg w-full max-w-lg mx-4">
+        <div class="px-6 py-4 border-b border-bloomberg-border flex justify-between items-center">
+            <h3 class="text-lg font-semibold text-bloomberg-text" id="dialog-title">新增指标</h3>
+            <button onclick="hideAddDialog()" class="text-bloomberg-muted hover:text-bloomberg-text text-2xl">&times;</button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm text-bloomberg-muted mb-1">指标名称</label>
+                <input type="text" id="indicator-name" class="w-full px-3 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text" placeholder="例如: MA60">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-bloomberg-muted mb-1">类别</label>
+                    <select id="indicator-category" class="w-full px-3 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text">
+                        <option value="trend">趋势指标</option>
+                        <option value="momentum">动量指标</option>
+                        <option value="volume">成交量指标</option>
+                        <option value="volatility">波动率指标</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-bloomberg-muted mb-1">类型</label>
+                    <select id="indicator-type" onchange="updateParamsFields()" class="w-full px-3 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text">
+                        <option value="MA">移动平均线 (MA)</option>
+                        <option value="EMA">指数移动平均线 (EMA)</option>
+                        <option value="VOL">成交量 (VOL)</option>
+                        <option value="MACD">MACD指标</option>
+                        <option value="KDJ">KDJ指标</option>
+                        <option value="RSI">相对强弱指标 (RSI)</option>
+                        <option value="ORB">开盘区间突破 (ORB)</option>
+                        <option value="BOLL">布林带 (BOLL)</option>
+                        <option value="ATR">平均真实波幅 (ATR)</option>
+                    </select>
+                </div>
+            </div>
+            <div id="params-container">
+                <label class="block text-sm text-bloomberg-muted mb-1">参数</label>
+                <div id="params-fields" class="space-y-2"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-bloomberg-muted mb-1">颜色</label>
+                    <input type="color" id="indicator-color" value="#f59e0b" class="w-full h-10 bg-bloomberg-card border border-bloomberg-border rounded">
+                </div>
+                <div>
+                    <label class="block text-sm text-bloomberg-muted mb-1">线宽</label>
+                    <select id="indicator-width" class="w-full px-3 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text">
+                        <option value="1">1px</option>
+                        <option value="2">2px</option>
+                        <option value="3">3px</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm text-bloomberg-muted mb-1">线型</label>
+                <select id="indicator-style" class="w-full px-3 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text">
+                    <option value="solid">实线</option>
+                    <option value="dashed">虚线</option>
+                    <option value="dotted">点线</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm text-bloomberg-muted mb-1">描述</label>
+                <textarea id="indicator-desc" class="w-full px-3 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text" rows="2" placeholder="指标描述（可选）"></textarea>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-bloomberg-border flex justify-end space-x-2">
+            <button onclick="hideAddDialog()" class="px-4 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text hover:bg-bloomberg-border transition-colors">
+                取消
+            </button>
+            <button onclick="saveIndicator()" class="px-4 py-2 bg-bloomberg-primary text-white rounded hover:bg-blue-600 transition-colors">
+                保存
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let indicators = [];
+let editingId = null;
+const indicatorTypes = {
+    'MA': { name: '移动平均线', params: ['period'], defaults: { period: 20 } },
+    'EMA': { name: '指数移动平均线', params: ['period'], defaults: { period: 20 } },
+    'VOL': { name: '成交量', params: [], defaults: {} },
+    'MACD': { name: 'MACD指标', params: ['fast', 'slow', 'signal'], defaults: { fast: 12, slow: 26, signal: 9 } },
+    'KDJ': { name: 'KDJ指标', params: ['n', 'm1', 'm2'], defaults: { n: 9, m1: 3, m2: 3 } },
+    'RSI': { name: '相对强弱指标', params: ['period'], defaults: { period: 14 } },
+    'ORB': { name: '开盘区间突破', params: ['period'], defaults: { period: 20 } },
+    'BOLL': { name: '布林带', params: ['period', 'std_dev'], defaults: { period: 20, std_dev: 2 } },
+    'ATR': { name: '平均真实波幅', params: ['period'], defaults: { period: 14 } }
+};
+
+const categoryNames = {
+    'trend': '趋势指标',
+    'momentum': '动量指标',
+    'volume': '成交量指标',
+    'volatility': '波动率指标'
+};
+
+async function loadIndicators() {
+    const category = document.getElementById('category-filter').value;
+    let url = '/api/v1/indicators/';
+    if (category) {
+        url += `?category=${category}`;
+    }
+    
+    try {
+        const response = await fetch(url);
+        indicators = await response.json();
+        renderTable();
+    } catch (error) {
+        console.error('Failed to load indicators:', error);
+        document.getElementById('indicators-table').innerHTML = 
+            '<tr><td colspan="7" class="px-4 py-8 text-center text-bloomberg-danger">加载失败</td></tr>';
+    }
+}
+
+function renderTable() {
+    const tbody = document.getElementById('indicators-table');
+    
+    if (indicators.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-bloomberg-muted">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = indicators.map(indicator => `
+        <tr class="border-t border-bloomberg-border hover:bg-bloomberg-card transition-colors">
+            <td class="px-4 py-3">
+                <div class="flex items-center space-x-2">
+                    <div class="w-4 h-0.5" style="background-color: ${indicator.color}"></div>
+                    <span class="text-bloomberg-text font-medium">${indicator.name}</span>
+                </div>
+            </td>
+            <td class="px-4 py-3 text-bloomberg-muted">${categoryNames[indicator.category] || indicator.category}</td>
+            <td class="px-4 py-3 text-bloomberg-muted">${indicatorTypes[indicator.indicator_type]?.name || indicator.indicator_type}</td>
+            <td class="px-4 py-3 text-bloomberg-muted">${formatParams(indicator.params)}</td>
+            <td class="px-4 py-3">
+                <div class="w-6 h-6 rounded" style="background-color: ${indicator.color}"></div>
+            </td>
+            <td class="px-4 py-3">
+                <span class="px-2 py-1 text-xs rounded ${indicator.is_active ? 'bg-green-900 text-green-400' : 'bg-gray-700 text-gray-400'}">
+                    ${indicator.is_active ? '启用' : '禁用'}
+                </span>
+            </td>
+            <td class="px-4 py-3">
+                <div class="flex items-center space-x-2">
+                    <button onclick="editIndicator(${indicator.id})" class="text-bloomberg-primary hover:text-blue-400 text-sm">编辑</button>
+                    <button onclick="toggleIndicator(${indicator.id}, ${!indicator.is_active})" class="text-bloomberg-muted hover:text-bloomberg-text text-sm">
+                        ${indicator.is_active ? '禁用' : '启用'}
+                    </button>
+                    <button onclick="deleteIndicator(${indicator.id})" class="text-bloomberg-danger hover:text-red-400 text-sm">删除</button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function formatParams(params) {
+    if (!params || Object.keys(params).length === 0) return '-';
+    return Object.entries(params).map(([k, v]) => `${k}=${v}`).join(', ');
+}
+
+function updateParamsFields() {
+    const type = document.getElementById('indicator-type').value;
+    const typeInfo = indicatorTypes[type];
+    const container = document.getElementById('params-fields');
+    
+    if (!typeInfo || typeInfo.params.length === 0) {
+        container.innerHTML = '<div class="text-bloomberg-muted text-sm">该指标无需参数</div>';
+        return;
+    }
+    
+    container.innerHTML = typeInfo.params.map(param => `
+        <div class="flex items-center space-x-2">
+            <label class="text-sm text-bloomberg-muted w-20">${param}:</label>
+            <input type="number" id="param-${param}" value="${typeInfo.defaults[param] || ''}" 
+                   class="flex-1 px-3 py-2 bg-bloomberg-card border border-bloomberg-border rounded text-bloomberg-text">
+        </div>
+    `).join('');
+}
+
+function showAddDialog() {
+    editingId = null;
+    document.getElementById('dialog-title').textContent = '新增指标';
+    document.getElementById('indicator-name').value = '';
+    document.getElementById('indicator-category').value = 'trend';
+    document.getElementById('indicator-type').value = 'MA';
+    document.getElementById('indicator-color').value = '#f59e0b';
+    document.getElementById('indicator-width').value = '1';
+    document.getElementById('indicator-style').value = 'solid';
+    document.getElementById('indicator-desc').value = '';
+    updateParamsFields();
+    document.getElementById('add-dialog').classList.remove('hidden');
+    document.getElementById('add-dialog').classList.add('flex');
+}
+
+function hideAddDialog() {
+    document.getElementById('add-dialog').classList.add('hidden');
+    document.getElementById('add-dialog').classList.remove('flex');
+}
+
+async function editIndicator(id) {
+    const indicator = indicators.find(i => i.id === id);
+    if (!indicator) return;
+    
+    editingId = id;
+    document.getElementById('dialog-title').textContent = '编辑指标';
+    document.getElementById('indicator-name').value = indicator.name;
+    document.getElementById('indicator-category').value = indicator.category;
+    document.getElementById('indicator-type').value = indicator.indicator_type;
+    document.getElementById('indicator-color').value = indicator.color;
+    document.getElementById('indicator-width').value = indicator.line_width;
+    document.getElementById('indicator-style').value = indicator.line_style;
+    document.getElementById('indicator-desc').value = indicator.description || '';
+    
+    updateParamsFields();
+    
+    setTimeout(() => {
+        if (indicator.params) {
+            Object.entries(indicator.params).forEach(([key, value]) => {
+                const input = document.getElementById(`param-${key}`);
+                if (input) input.value = value;
+            });
+        }
+    }, 100);
+    
+    document.getElementById('add-dialog').classList.remove('hidden');
+    document.getElementById('add-dialog').classList.add('flex');
+}
+
+async function saveIndicator() {
+    const type = document.getElementById('indicator-type').value;
+    const typeInfo = indicatorTypes[type];
+    
+    const params = {};
+    if (typeInfo && typeInfo.params.length > 0) {
+        typeInfo.params.forEach(param => {
+            const input = document.getElementById(`param-${param}`);
+            if (input && input.value) {
+                params[param] = parseInt(input.value);
+            }
+        });
+    }
+    
+    const data = {
+        name: document.getElementById('indicator-name').value,
+        category: document.getElementById('indicator-category').value,
+        indicator_type: type,
+        params: params,
+        color: document.getElementById('indicator-color').value,
+        line_width: parseInt(document.getElementById('indicator-width').value),
+        line_style: document.getElementById('indicator-style').value,
+        description: document.getElementById('indicator-desc').value
+    };
+    
+    try {
+        let url = '/api/v1/indicators/';
+        let method = 'POST';
+        
+        if (editingId) {
+            url += `${editingId}`;
+            method = 'PUT';
+        }
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '保存失败');
+        }
+        
+        hideAddDialog();
+        loadIndicators();
+    } catch (error) {
+        alert('保存失败: ' + error.message);
+    }
+}
+
+async function toggleIndicator(id, isActive) {
+    try {
+        const response = await fetch(`/api/v1/indicators/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: isActive })
+        });
+        
+        if (!response.ok) throw new Error('操作失败');
+        loadIndicators();
+    } catch (error) {
+        alert('操作失败: ' + error.message);
+    }
+}
+
+async function deleteIndicator(id) {
+    if (!confirm('确定要删除这个指标吗？')) return;
+    
+    try {
+        const response = await fetch(`/api/v1/indicators/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) throw new Error('删除失败');
+        loadIndicators();
+    } catch (error) {
+        alert('删除失败: ' + error.message);
+    }
+}
+
+async function resetIndicators() {
+    if (!confirm('确定要重置所有指标为默认值吗？这将删除所有自定义指标。')) return;
+    
+    try {
+        const response = await fetch('/api/v1/indicators/reset', {
+            method: 'POST'
+        });
+        
+        if (!response.ok) throw new Error('重置失败');
+        loadIndicators();
+    } catch (error) {
+        alert('重置失败: ' + error.message);
+    }
+}
+
+loadIndicators();
+</script>
+{% endblock %}
